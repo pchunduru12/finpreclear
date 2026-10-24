@@ -126,12 +126,21 @@ class AuditLog:
         self.redact = redact_argument_values
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        rep = verify_chain(self.path) if self.path.exists() else ChainReport(True, 0, GENESIS)
-        if not rep.ok:
-            # Refuse to extend a broken chain: a silent restart would hide tampering.
-            raise RuntimeError(f"audit log {self.path} fails verification: {rep.error} (line {rep.bad_line})")
-        self._seq, self._prev = rep.count, rep.head_hash
-        self._offset = self.path.stat().st_size if self.path.exists() else 0  # bytes covered by the verified chain
+        # Initialization and append MUST use the same inter-process advisory lock.
+        # Otherwise another process can append after verify_chain but before stat,
+        # making _offset cover bytes that _seq/_prev have not yet verified.
+        fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o640)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            rep = verify_chain(self.path)
+            if not rep.ok:
+                # Refuse to extend a broken chain: a silent restart would hide tampering.
+                raise RuntimeError(f"audit log {self.path} fails verification: {rep.error} (line {rep.bad_line})")
+            self._seq, self._prev = rep.count, rep.head_hash
+            self._offset = os.fstat(fd).st_size  # exact byte length covered by verified head
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
     @property
     def head(self) -> tuple[int, str]:
