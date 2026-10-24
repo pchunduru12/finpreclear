@@ -197,6 +197,7 @@ Goal: the gateway running in shadow mode, signed and logged, reading the bank's 
    - A threshold is below the minimum (0.9 high, 0.8 medium).
    - A non-read-only tool is set to fail open.
    - TLS is not configured. Fix the config; don't work around it.
+   - Pilot checks (any non-loopback start): `--redact` is missing; the policies or records are the repo's samples or fixtures; no records are given; any tool fails open; any tool has `"enforce": true` without `--force-shadow`; or the `v1_targets_met` gate (with the two gates before it) is closed. The read-only fast path is off, so the judge sees every call.
 5. Check it's up: `curl --cert agent.crt --key agent.key https://gateway:8443/healthz`.
 6. Anchor the audit log's head hash to the WORM store or SIEM every day. Truncation of the end of the log can only be detected against that anchor.
 
@@ -230,20 +231,18 @@ Goal: the agent can no longer call any tool directly. Every call goes through th
    - Payments, wires and exports stop.
    - Read-only lookups still run, and each one logs a warning.
 
-## Step 8: Shadow pilot, then enforce one tool at a time
+## Step 8: Shadow pilot
 
-Goal: prove misses and false alarms on the bank's real traffic, then turn on blocking tool by tool. Needs the `v1_targets_met` gate.
+Goal: prove misses and false alarms on the bank's real traffic. Needs the `v1_targets_met` gate. v1 ends here: model verdicts never block in v1.
 
 1. Run at least 4 weeks with `"enforce": false` on every tool.
    - FinGuard records a verdict on every action but doesn't stop the model-judged ones.
-   - Deterministic rule blocks, like a denylisted account or a payee that doesn't match the master, are enforced from day one.
+   - Deterministic rule blocks, like a denylisted account or a payee that doesn't match the master, are enforced from day one. Agree this with the bank's controls lead before go-live; it changes their payment flow.
+   - A gateway outage still stops high-risk tools (local fail-closed), even in shadow mode. Agree this with the bank too, and test it (Step 7.6).
 2. Each week, compare FinGuard's verdicts with what the bank's reviewers decided on the same actions. Count misses and false alarms per tool, with confidence intervals.
 3. Tune per tool only: allow thresholds in `action_types.json`, and policy wording in `policies.jsonl`. Never edit the model during the pilot.
-4. Switch a tool to enforce only when its false-alarm upper bound is at or below 2% and no misses are unexplained.
-   - Start with the lowest-volume high-risk tool.
-   - Make one change per reviewed commit, signed off by the bank's controls lead.
-   - Deploy the same change to the client's copy of `action_types.json`.
-5. Keep a written reason for every switch. The bank's model-risk team will ask for it.
+4. The pilot is where the false-alarm target (≤ 2%) is proven; the `v1_targets_met` gate covers what synthetic held-out sets can prove (catch rate, unseen families, baselines, latency).
+5. After v1 (not in the v1 launcher): per-tool enforcement of model verdicts. A tool qualifies only when its false-alarm upper bound is at or below 2% and no misses are unexplained. It needs a separate reviewed change to the launcher (see draft PR #11), one tool per commit, signed off by the bank's controls lead, with a written reason the bank's model-risk team can read.
 
 ## Run it day to day
 

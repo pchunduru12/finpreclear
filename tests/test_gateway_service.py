@@ -91,7 +91,7 @@ def test_confident_allow_stands(tmp_path):
     assert "P-PAY-002" in d["policy_ids"]  # retriever filled clauses
 
 
-def test_missing_logprobs_allow_escalates_unless_read_only(tmp_path):
+def test_missing_logprobs_allow_escalates(tmp_path):
     step = StubStep(output={"verdict": "allow", "risk_category": "none", "evidence": "", "reason": "ok"}, p_verdict={})
     c, _ = client(tmp_path / "h", StubJudge([step]))
     assert post(c, make_req(context=[vendor_master()]))["decided_by"] == "threshold"

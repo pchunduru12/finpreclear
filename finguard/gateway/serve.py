@@ -21,6 +21,17 @@ approval and direct-deposit check escalates (it never passes).
 Production startup requires a server certificate, private key and client-CA bundle, so
 client certificates are REQUIRED (mTLS). --insecure-dev is permitted only on a literal
 loopback address; it never exposes an unauthenticated listener on a network interface.
+
+v1 pilot startup (anything that is not --insecure-dev) also requires:
+  - the v1_targets_met gate (which implies pilot_partner_signed and teacher_selected);
+    independent_review_passed is the public-release gate and is NOT needed for the pilot;
+  - shadow mode for model verdicts: every tool enforce=false, or --force-shadow.
+    Deterministic rule blocks (denylist, payee mismatch) are still enforced, as agreed
+    with the bank's controls lead. Turning on model-verdict enforcement for any tool is a
+    separate, reviewed change after shadow-pilot evidence; this launcher refuses it;
+  - --redact, a non-sample policy file and non-sample records;
+  - no fail-open tools;
+  - no judge-bypass fast path for read-only tools (reads can disclose customer data).
 """
 from __future__ import annotations
 
@@ -31,11 +42,18 @@ import ssl
 import sys
 from pathlib import Path
 
+from .. import gates
 from ..judge_client import VLLMJudge, VLLMJudgeConfig
 from ..retrieval import PolicyRetriever
 from ..rules import RuleEngine
 from .records import JsonRecordsLookup
-from .service import create_app
+from .service import create_app, tool_entries, validate_action_types
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SAMPLE_POLICIES = REPO_ROOT / "policies" / "sample_policy.jsonl"
+SAMPLE_RECORDS = REPO_ROOT / "configs" / "records_sample.json"
+FIXTURES_DIR = REPO_ROOT / "fixtures"
+PILOT_GATE = "v1_targets_met"
 
 
 def build_app(a: argparse.Namespace):
@@ -43,11 +61,15 @@ def build_app(a: argparse.Namespace):
                                       api_key=os.environ.get("FINGUARD_JUDGE_API_KEY"),
                                       structured_mode=a.structured_mode))
     records = JsonRecordsLookup.from_json(a.records) if a.records else None
+    rules_cfg = json.loads(Path(a.rules).read_text())
+    if not a.insecure_dev:
+        # Read-only tools can still disclose customer data: the judge sees every call.
+        rules_cfg["fast_path_low_tier"] = False
     return create_app(
         judge=judge,
         retriever=PolicyRetriever.from_jsonl(a.policies, k=a.policy_k),
         action_types=json.loads(Path(a.action_types).read_text()),
-        rules=RuleEngine(json.loads(Path(a.rules).read_text()), records=records),
+        rules=RuleEngine(rules_cfg, records=records),
         audit_path=a.audit_log,
         model_version=a.model_version,
         shadow_override=True if a.force_shadow else None,
@@ -98,12 +120,50 @@ def transport_configuration_error(a: argparse.Namespace) -> str | None:
     return None
 
 
+def _is_fixture(path: str) -> bool:
+    p = Path(path).resolve()
+    return p in (SAMPLE_POLICIES.resolve(), SAMPLE_RECORDS.resolve()) or FIXTURES_DIR.resolve() in p.parents
+
+
+def pilot_configuration_error(a: argparse.Namespace) -> str | None:
+    """Static checks for a v1 shadow-pilot start. Local development (--insecure-dev on
+    loopback) is exempt; anything network-facing is a pilot and must pass all of these."""
+    if a.insecure_dev:
+        return None
+    if not a.redact:
+        return "pilot requires --redact so argument values, evidence and reasons are hashed in the audit log"
+    if _is_fixture(a.policies):
+        return "pilot cannot load sample or fixture policies; configure the bank's approved policy clauses"
+    if not a.records:
+        return "pilot requires the bank's records (vendor master, approvals) via --records or an adapter"
+    if _is_fixture(a.records):
+        return "pilot cannot use sample or fixture vendor and approval records"
+    try:
+        action_types = json.loads(Path(a.action_types).read_text())
+        validate_action_types(action_types)
+    except (OSError, ValueError, TypeError) as exc:
+        return f"action configuration is invalid: {type(exc).__name__}"
+    entries = {"_default": action_types["_default"], **tool_entries(action_types)}
+    if any(e.get("fail_mode") == "open" for e in entries.values()):
+        return "pilot cannot use fail-open tools"
+    if not a.force_shadow and any(e.get("enforce") is True for e in entries.values()):
+        return ("v1 pilot is shadow-only for model verdicts: set enforce=false for every tool or use "
+                "--force-shadow; per-tool enforcement is a separate reviewed change after shadow evidence")
+    return None
+
+
 def main(argv=None) -> int:
     a = parse(argv)
-    error = transport_configuration_error(a)
+    error = transport_configuration_error(a) or pilot_configuration_error(a)
     if error:
         print(f"REFUSED: {error}", file=sys.stderr)
         return 2
+    if not a.insecure_dev:
+        try:
+            gates.require(PILOT_GATE, gates.GATES_FILE)
+        except gates.GateClosed as exc:
+            print(f"REFUSED: pilot gate not satisfied: {exc}", file=sys.stderr)
+            return 3
     tls = bool(a.ssl_certfile and a.ssl_keyfile)
     app = build_app(a)
     import uvicorn
