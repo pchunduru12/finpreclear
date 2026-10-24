@@ -18,8 +18,9 @@ production, replace it with a read-only adapter to the bank's vendor master, app
 HR systems implementing gateway.records.RecordsLookup. Without records, every payee,
 approval and direct-deposit check escalates (it never passes).
 
-With --ssl-ca-certs, client certificates are REQUIRED (mTLS). Plain HTTP refuses to start
-unless --insecure-dev is given.
+Production startup requires a server certificate, private key and client-CA bundle, so
+client certificates are REQUIRED (mTLS). --insecure-dev is permitted only on a literal
+loopback address; it never exposes an unauthenticated listener on a network interface.
 """
 from __future__ import annotations
 
@@ -74,16 +75,36 @@ def parse(argv=None) -> argparse.Namespace:
     ap.add_argument("--ssl-certfile")
     ap.add_argument("--ssl-keyfile")
     ap.add_argument("--ssl-ca-certs", help="CA for client certificates; when set, clients must present one (mTLS)")
-    ap.add_argument("--insecure-dev", action="store_true", help="allow plain HTTP (local development only)")
+    ap.add_argument("--insecure-dev", action="store_true", help="allow non-mTLS transport on loopback only (local development)")
     return ap.parse_args(argv)
+
+
+def transport_configuration_error(a: argparse.Namespace) -> str | None:
+    """Refuse unprotected network-facing listeners and incomplete production mTLS.
+
+    Development transport is constrained to literal loopback, not a host string which
+    may resolve to a public interface or wildcard. The actual server private key
+    and CA are loaded and validated by the ASGI server at startup.
+    """
+    loopback = a.host in ("127.0.0.1", "::1")
+    if a.insecure_dev and not loopback:
+        return "--insecure-dev is allowed only with --host 127.0.0.1 or ::1"
+    if bool(a.ssl_certfile) != bool(a.ssl_keyfile):
+        return "TLS requires both --ssl-certfile and --ssl-keyfile"
+    if a.ssl_ca_certs and not (a.ssl_certfile and a.ssl_keyfile):
+        return "--ssl-ca-certs requires a TLS certificate and private key"
+    if not a.insecure_dev and not (a.ssl_certfile and a.ssl_keyfile and a.ssl_ca_certs):
+        return "production requires --ssl-certfile, --ssl-keyfile and --ssl-ca-certs for mTLS"
+    return None
 
 
 def main(argv=None) -> int:
     a = parse(argv)
-    tls = bool(a.ssl_certfile and a.ssl_keyfile)
-    if not tls and not a.insecure_dev:
-        print("REFUSED: TLS cert/key required (mTLS in production). Use --insecure-dev only on a laptop.", file=sys.stderr)
+    error = transport_configuration_error(a)
+    if error:
+        print(f"REFUSED: {error}", file=sys.stderr)
         return 2
+    tls = bool(a.ssl_certfile and a.ssl_keyfile)
     app = build_app(a)
     import uvicorn
     kw = {}

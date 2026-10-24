@@ -8,7 +8,7 @@ The v1 code is built and tested on CPU with fixture data; no model is trained ye
 
 ## What's built
 
-All components pass 295 automated tests on CPU. They are tested on fixture data drafted by Claude, which is marked never-for-training.
+On this branch (PR #10), **305 automated CPU tests** pass on fixture data as of Oct 24 (main: 298; CI on each PR is the live count). PR #11 shows 317 because it adds future-enforcement tests that are out of v1 scope. None of this is trained-model validation. The fixture data was drafted by Claude and is marked never-for-training.
 
 | Component | What it does | Status |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ Residual risk: deterministic rules can never cover every field name or format. T
 
 ## Agent team
 
-Agents write code, run pipelines and read results. Humans write all training and test content, sign the gates, and own the pilot. This split is a licensing requirement: anything an agent drafts would count as Claude output in the training data.
+The canonical team is seven `fg-*` agents plus the orchestrator. Their original Never limits are binding, especially the closed red-team generator's absolute prohibition on copying code or output to the open repository. Agents write code, run pipelines and read results. **Humans must write** all training and evaluation content from scratch; human review of agent-drafted content does not make it eligible. Humans sign gates and own the pilot. This split is a licensing requirement: anything an agent drafts would count as Claude output in the training data.
 
 | Agent | Runs | Never |
 | --- | --- | --- |
@@ -38,20 +38,27 @@ Agents write code, run pipelines and read results. Humans write all training and
 | Eval | Scorecards, regressions per family and workflow, ablations | Tunes on test splits |
 | Gateway ops | vLLM serving, latency budget, fail-mode drills, audit-chain checks | Switches a tool from shadow to enforce |
 | Model-risk docs | Model card, model-risk validation pack (SR 26-2 principles plus the bank's AI governance), control mapping | Marks a document approved |
-| Reviewer | Independent check of every change and every scorecard before a gate | Replaces the external red-team review |
+| Reviewer (internal QA agent) | Cold review of changes and scorecards before a gate | Replaces the independent human/outside red-team review |
 | Red-team ops (internal only) | The closed red-team generator in the sandbox, on an allowlisted open model | Copies generator code or output into the open repo |
 
 Humans only: threat-model sign-off, attack and scenario templates, policy clauses, weekly label spot checks, gate decisions, the pilot relationship, and the external red-team review.
 
 ## Timeline
 
-&#91;embedded content: FinPreclear v1 build timeline · 4 phases, 3 gates (estimated dates)\]
+All timings are estimates, counted from T+0 = pilot agreement signed.
 
-The pilot-partner signature is the critical path: every week it slips moves training and everything after it by a week. Phase 4 runs about a month longer than the original plan, because a 4-week shadow pilot plus an outside review rarely fits in one month.
+| Phase | When (estimate) | Gate that ends it |
+| --- | --- | --- |
+| 1 · Scope (pre-signature) | Now → T+0, about 4 weeks | 1 `pilot_partner_signed` |
+| 2 · Data + SFT | T+0 → about T+10 weeks | 2 `teacher_selected` comes first, within about a week of T+0; no labeling before it |
+| 3 · RL + testing | about T+10 → T+18 weeks | 3 `v1_targets_met`: shadow pilot may start |
+| 4 · Shadow pilot + release | about T+18 → T+27 weeks | 4 `independent_review_passed`: public release of weights |
+
+The signed pilot agreement is **T+0**. No training or teacher labeling occurs before the applicable signed gates; all data, model and shadow-pilot phases are relative to T+0. The pre-signature synthetic access-restricted demo is separate and capped at 2–4 weeks. It must not delay assigning the security engineer. Phase 4 runs about a month longer than the original plan, because a 4-week shadow pilot plus an outside review rarely fits in one month.
 
 ## Effort
 
-All figures are estimates. With agents doing code, runs, evals and drafts, v1 needs about 65 human person-weeks (about 15 person-months). The original plan staffed 4–5 people for 6 months, roughly 24–30 person-months.
+These estimates are **human-only**, with agent hours separately shown; they must not be equated to engineering workstream estimates. With agents doing code, runs, evals and drafts, v1 needs about 65 human person-weeks (about 15 person-months). The original plan staffed 4–5 people for 6 months, roughly 24–30 person-months.
 
 | Phase | Agent work (hours) | Human work (person-weeks) | Compute (USD) |
 | --- | --- | --- | --- |

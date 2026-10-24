@@ -65,7 +65,7 @@ We follow the recipe from the Meta/CMU tool-selection paper (Oct 2026). There, a
 
 ## Plan and milestones
 
-Version 1 takes about six months, with two go/no-go gates.
+Version 1 uses four ordered approval gates. The post-signature program begins at T+0, defined as the date the pilot agreement is signed. No training or labeling starts before the relevant gates open. The diagram below is a historical two-gate snapshot.
 
 &#91;embedded content: FinPreclear v1 roadmap · 4 phases, 2 gates\]
 
