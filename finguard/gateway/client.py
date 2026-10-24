@@ -14,6 +14,9 @@ The tool runs only when:
     for this tool AND the gateway says enforced=false AND the decision is not a
     deterministic rule block (decided_by="rule", verdict=block).
 
+dry_run=True (demo / trace replay): the tool NEVER runs, whatever the verdict or fail mode;
+the signed decision is returned for display and audit only.
+
 Every response must carry a valid HMAC signature (shared key, env FINGUARD_RESPONSE_KEY)
 over the exact request digest, canonical tool name and body, and must echo the request_id.
 A missing/invalid signature, a mismatched request_id / tool / digest, an unreachable
@@ -101,11 +104,12 @@ class GuardedToolClient:
     registry: ToolRegistry built by the agent runtime (the agent cannot change it).
     action_types: the CLIENT's own copy of configs/action_types.json, deployed with the
     agent runtime, not received from the gateway.
-    response_key: HMAC key; defaults to env FINGUARD_RESPONSE_KEY."""
+    response_key: HMAC key; defaults to env FINGUARD_RESPONSE_KEY.
+    dry_run: explicit pilot preview mode: never execute registered tool functions."""
 
     def __init__(self, registry: ToolRegistry, *, gateway_url: str, action_types: dict,
                  response_key: Union[str, bytes, None] = None, http: Optional[httpx.Client] = None,
-                 timeout_s: float = 2.0):
+                 timeout_s: float = 2.0, dry_run: bool = False):
         if not isinstance(registry, ToolRegistry):
             raise TypeError("registry must be a ToolRegistry")
         self._registry = registry
@@ -114,9 +118,13 @@ class GuardedToolClient:
         self._key = (raw_key.encode() if isinstance(raw_key, str) else raw_key) or None
         self._http = http
         self._gateway_url, self._timeout_s = gateway_url, timeout_s
+        self._dry_run = bool(dry_run)  # beta preview: never invoke any registered tool, regardless of verdict
 
     def _local_fail(self, tool: str, fn: Callable[..., Any], args: dict, why: str,
                     cause: Optional[BaseException] = None) -> GuardOutcome:
+        if self._dry_run:
+            # Even a historically fail-open tool must not execute on an unverified response.
+            raise ActionStopped(Verdict.ESCALATE, f"dry-run gateway failure: {why}; tool was not executed") from cause
         cfg = action_config(self._action_types, tool)
         v = FAIL_MODE_VERDICT[cfg["fail_mode"]]
         if v != Verdict.ALLOW:
@@ -163,6 +171,10 @@ class GuardedToolClient:
             if self._http is None:
                 client.close()
 
+        if self._dry_run:
+            # A signed decision is observable, but absolutely no tool function runs.
+            # This includes ALLOW, BLOCK, ESCALATE and shadow-mode verdicts.
+            return GuardOutcome(False, None, decision, shadow=True)
         if decision.verdict == Verdict.ALLOW:
             return GuardOutcome(True, fn(**frozen_args), decision)
         local_enforce = bool(action_config(self._action_types, tool).get("enforce", False))
