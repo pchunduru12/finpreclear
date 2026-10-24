@@ -15,5 +15,5 @@ FinGuard v1 = the action judge only: a small open-weight model (Qwen3-4B, then 8
 - Use `finguard.prompt.build_messages` for every judge prompt (train, eval, serve).
 - Record provenance for every row and a run record for every training run.
 - Report PASS/FAIL on the confidence-interval bound, not the point estimate.
-- Map findings to SR 11-7, SOX, OWASP LLM Top 10 and NIST AI RMF when writing for model risk.
+- Separate governance: deterministic rules are bank IT/SOX controls; the agentic AI judge is governed under the bank's own AI framework. SR 26-2 (April 2026) replaced SR 11-7 and excludes generative/agentic AI and purely deterministic systems; use its principles only as informative. Also map to OWASP LLM Top 10 and NIST AI RMF.
 - Stop and ask a human when a change touches schema.py, prompt.py, provenance.py, gates.py or rewards.
