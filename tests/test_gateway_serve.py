@@ -50,7 +50,13 @@ def test_production_requires_mutual_tls():
                               "--ssl-certfile", "cert.pem",
                               "--ssl-keyfile", "key.pem",
                               "--ssl-ca-certs", "clients.pem"])
-    assert serve.transport_configuration_error(args) is None
+    assert serve.transport_configuration_error(args) is not None  # missing redaction + sample data
+    approved = serve.parse(ARGS + ["--host", "0.0.0.0", "--redact",
+                                   "--policies", "/etc/finpreclear/policies.jsonl",
+                                   "--records", "/etc/finpreclear/records.json",
+                                   "--ssl-certfile", "cert.pem", "--ssl-keyfile", "key.pem",
+                                   "--ssl-ca-certs", "clients.pem"])
+    assert serve.transport_configuration_error(approved) is None
 
 
 def test_insecure_remote_listener_refused_before_app_initialization(monkeypatch):

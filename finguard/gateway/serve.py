@@ -19,8 +19,10 @@ HR systems implementing gateway.records.RecordsLookup. Without records, every pa
 approval and direct-deposit check escalates (it never passes).
 
 Production startup requires a server certificate, private key and client-CA bundle, so
-client certificates are REQUIRED (mTLS). --insecure-dev is permitted only on a literal
-loopback address; it never exposes an unauthenticated listener on a network interface.
+client certificates are REQUIRED (mTLS). Live startup also requires --redact,
+non-fixture policy/records and the v1_targets_met human-approved gate. The read-only
+judge-bypass fast path is disabled outside --insecure-dev. Development transport is
+allowed only on a literal loopback address.
 """
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ import sys
 from pathlib import Path
 
 from ..judge_client import VLLMJudge, VLLMJudgeConfig
+from .. import gates
 from ..retrieval import PolicyRetriever
 from ..rules import RuleEngine
 from .records import JsonRecordsLookup
@@ -43,11 +46,16 @@ def build_app(a: argparse.Namespace):
                                       api_key=os.environ.get("FINGUARD_JUDGE_API_KEY"),
                                       structured_mode=a.structured_mode))
     records = JsonRecordsLookup.from_json(a.records) if a.records else None
+    rules_cfg = json.loads(Path(a.rules).read_text())
+    if not a.insecure_dev:
+        # A read-only data access can still disclose regulated information.
+        # No judge-bypass fast path outside isolated local development.
+        rules_cfg["fast_path_low_tier"] = False
     return create_app(
         judge=judge,
         retriever=PolicyRetriever.from_jsonl(a.policies, k=a.policy_k),
         action_types=json.loads(Path(a.action_types).read_text()),
-        rules=RuleEngine(json.loads(Path(a.rules).read_text()), records=records),
+        rules=RuleEngine(rules_cfg, records=records),
         audit_path=a.audit_log,
         model_version=a.model_version,
         shadow_override=True if a.force_shadow else None,
@@ -95,6 +103,16 @@ def transport_configuration_error(a: argparse.Namespace) -> str | None:
         return "--ssl-ca-certs requires a TLS certificate and private key"
     if not a.insecure_dev and not (a.ssl_certfile and a.ssl_keyfile and a.ssl_ca_certs):
         return "production requires --ssl-certfile, --ssl-keyfile and --ssl-ca-certs for mTLS"
+    if not a.insecure_dev:
+        if not a.redact:
+            return "production requires --redact to minimize sensitive information in audit logs"
+        repo_root = Path(__file__).resolve().parents[2]
+        if Path(a.policies).resolve() == (repo_root / "policies" / "sample_policy.jsonl").resolve():
+            return "production cannot load the sample financial policy; configure partner-approved policies"
+        if not a.records:
+            return "production requires a bank-controlled records adapter or verified policy data source"
+        if Path(a.records).resolve() == (repo_root / "configs" / "records_sample.json").resolve():
+            return "production cannot use fixture vendor and approval records"
     return None
 
 
@@ -105,6 +123,12 @@ def main(argv=None) -> int:
         print(f"REFUSED: {error}", file=sys.stderr)
         return 2
     tls = bool(a.ssl_certfile and a.ssl_keyfile)
+    if not a.insecure_dev:
+        try:
+            gates.require("v1_targets_met")
+        except gates.GateClosed as exc:
+            print(f"REFUSED: release preflight gate not satisfied: {exc}", file=sys.stderr)
+            return 3
     app = build_app(a)
     import uvicorn
     kw = {}
