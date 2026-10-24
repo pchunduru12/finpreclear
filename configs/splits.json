@@ -1,0 +1,10 @@
+{
+  "_comment": "Split assignment for FinGuard datasets. Precedence: held-out family > held-out workflow > held-out policy set > stable hash of template_id. Splits are by template, never by row. Every risk category must still appear in train; hold out techniques (families) and workflows, not categories.",
+  "version": "splits-1.0",
+  "heldout_families": ["inj.tool_reply", "split.multi_step"],
+  "heldout_workflows": ["payroll"],
+  "heldout_policy_sets": ["alt_policy_v1"],
+  "iid_ratios": {"train": 0.7, "dev": 0.1, "test_iid": 0.2},
+  "hash_salt": "finguard-splits-v1",
+  "near_dup": {"shingle_chars": 5, "jaccard_max": 0.8}
+}

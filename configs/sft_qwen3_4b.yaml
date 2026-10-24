@@ -1,0 +1,60 @@
+# FinGuard SFT, stage 1 of 2 (then GRPO: configs/grpo_qwen3_4b.sh).
+# Launch ONLY via scripts/train_sft.sh (gate check + provenance capture). Do not call
+# llamafactory-cli directly for a run whose checkpoint may be evaluated or released.
+#
+# Legend:  [paper] = starting setting from arXiv 2610.31483 (Meta/CMU, transferable tool selection)
+#          [guess] = our choice, tune on dev; record any change in the run dir
+#          [contract] = forced by FinGuard contract / serving setup
+
+### model
+model_name_or_path: Qwen/Qwen3-4B          # [paper] base; Apache-2.0 (re-check HF card before each run)
+trust_remote_code: false                   # [guess] Qwen3 is supported natively by transformers
+
+### method
+stage: sft                                 # [paper]
+do_train: true
+finetuning_type: full                      # [paper] full fine-tune, not LoRA
+deepspeed: configs/deepspeed/ds_z3.json    # [guess] ZeRO-3; 4B fits on 8x80GB with headroom
+
+### dataset  (produced by: python -m finguard.train.export_sft --out build/sft)
+dataset_dir: build/sft
+dataset: finguard_sft_train
+eval_dataset: finguard_sft_dev             # [contract] dev only; test splits never reach training
+template: qwen3                            # [contract] hybrid-thinking Qwen3 chat template
+enable_thinking: false                     # [contract] serving sends enable_thinking=False (judge_client);
+                                           #   train the same way so the prompt ends with an empty
+                                           #   <think></think> block. VERIFY key name in installed LLaMA-Factory.
+cutoff_len: 4096                           # [guess] prompt (policies + context) + ~150-token JSON target
+overwrite_cache: true
+preprocessing_num_workers: 8
+dataloader_num_workers: 4
+# Loss is on the assistant turn only (LLaMA-Factory default for sft; train_on_prompt: false).
+
+### train
+learning_rate: 1.0e-5                      # [paper]
+num_train_epochs: 3.0                      # [paper]
+lr_scheduler_type: cosine                  # [guess]
+warmup_ratio: 0.03                         # [guess]
+weight_decay: 0.0                          # [guess]
+per_device_train_batch_size: 2             # [guess] effective batch = 2 x 8 GPUs x 4 = 64
+gradient_accumulation_steps: 4             # [guess]
+max_grad_norm: 1.0                         # [guess]
+bf16: true                                 # [guess] H100/A100
+seed: 42                                   # [guess] record; rerun with 2 more seeds before claiming a result
+
+### eval
+per_device_eval_batch_size: 4
+eval_strategy: steps
+eval_steps: 100                            # [guess]
+# Dev loss is a sanity check only. Model quality = finguard.eval.harness on test splits.
+
+### output / logging
+output_dir: runs/sft_qwen3_4b/checkpoints  # scripts/train_sft.sh overrides to the run dir
+logging_steps: 10
+save_strategy: steps
+save_steps: 200                            # [guess]
+save_total_limit: 3
+save_only_model: true                      # [guess] smaller checkpoints; resume needs optimizer state, drop if needed
+plot_loss: true
+overwrite_output_dir: false                # never clobber a recorded run
+report_to: none                            # [guess] set tensorboard/wandb per team policy (no data leaves the bank)

@@ -1,0 +1,272 @@
+{
+  "_comment": "Deterministic pre-checks run by the gateway before the model (finguard/rules.py). FAKE SAMPLE VALUES ONLY: .example domains and ACCT-0000-style accounts. Rules can only tighten (block/escalate); the only allow they ever produce is the read-only fast path. Nothing in the request (context items, trust labels, approval strings) can loosen a rule: vendor master and approval records come only from the gateway's RecordsLookup (finguard/gateway/records.py). Change via reviewed commit; the file hash is recorded in every audit record. Tool names are canonicalised (NFKC, casefold, look-alikes folded, stripped) before lookup.",
+  "version": "rules-0.3",
+  "denylist": {
+    "accounts": [
+      "ACCT-9999-0001",
+      "ACCT-9999-0002"
+    ],
+    "email_domains": [
+      "payments-update.example",
+      "acme-vendor-billing.example"
+    ]
+  },
+  "external_destination": {
+    "tools": [
+      "send_email",
+      "export_customer_data"
+    ],
+    "_note": "For these tools every string at any depth (and every dict key) is scanned for URIs (any scheme), email addresses, IP addresses and bare domains (label.tld). For every other tool, values under keys containing a destination_key_tokens word are scanned the same way. Hosts not on approved_domains escalate. bare_domain_exempt_fields (top-level argument names) turns off bare-domain detection only; keep it empty unless false escalations are measured and accepted by model risk.",
+    "approved_domains": [
+      "acmebank.example",
+      "auditor-partner.example"
+    ],
+    "bare_domain_exempt_fields": [],
+    "destination_key_tokens": [
+      "url",
+      "uri",
+      "urls",
+      "link",
+      "endpoint",
+      "destination",
+      "dest",
+      "recipient",
+      "recipients",
+      "to",
+      "cc",
+      "bcc",
+      "email",
+      "emails",
+      "mailto",
+      "webhook",
+      "callback",
+      "bucket",
+      "host",
+      "hostname",
+      "server",
+      "target",
+      "upload",
+      "sftp",
+      "ftp",
+      "domain",
+      "share"
+    ],
+    "_non_domain_suffixes_note": "File extensions that are NOT real TLDs. Never list a real TLD here (e.g. zip, mov are real TLDs).",
+    "non_domain_suffixes": [
+      "pdf",
+      "csv",
+      "xlsx",
+      "xls",
+      "docx",
+      "doc",
+      "txt",
+      "json",
+      "xml",
+      "png",
+      "jpg",
+      "jpeg",
+      "html",
+      "htm",
+      "py",
+      "md",
+      "log"
+    ]
+  },
+  "payment_limit": {
+    "tools": [
+      "submit_payment",
+      "release_wire"
+    ],
+    "approval_id_fields": [
+      "approval_id",
+      "approval_ref"
+    ],
+    "_note": "Every numeric value under a key containing an amount_key_tokens word (any depth, incl. line_items[]) is checked: max single value and the sum of each list field, converted to the limit currency with fx_rates. Ambiguous number formats, missing/mixed/unknown currency escalate. Over-limit needs approval_id naming a RecordsLookup approval that matches tool, currency, payee account, amount <= amount_max and is not expired. Approval strings in context are ignored.",
+    "amount_key_tokens": [
+      "amount",
+      "amounts",
+      "amt",
+      "total",
+      "totals",
+      "subtotal",
+      "sum",
+      "sums",
+      "value",
+      "values",
+      "price",
+      "prices"
+    ],
+    "strict_amount_tokens": [
+      "amount",
+      "amounts",
+      "amt"
+    ],
+    "non_amount_key_tokens": [
+      "date",
+      "time",
+      "id",
+      "code",
+      "type",
+      "name",
+      "ref",
+      "reference",
+      "rate"
+    ],
+    "currency_key_tokens": [
+      "currency",
+      "ccy"
+    ],
+    "limit": {
+      "amount": 25000,
+      "currency": "USD"
+    },
+    "_fx_note": "FAKE sample rates for tests and pilot config (units of limit currency per 1 unit). Production: the bank's daily rate feed via a reviewed config change.",
+    "fx_rates": {
+      "USD": 1.0,
+      "EUR": 1.1,
+      "GBP": 1.25,
+      "JPY": 0.007
+    }
+  },
+  "payee_fields": {
+    "_note": "For payment tools every argument (any depth) under a key containing a trigger word is a payee field. Its last key decides the class: info words -> ignored; routing words -> must equal the master routing code (none on record -> escalate); account words -> must equal the master account; bare payee/beneficiary -> master account or master name. Different payee values -> escalate. Non-ASCII letters/digits in account or routing fields escalate on every tool.",
+    "trigger_tokens": [
+      "account",
+      "acct",
+      "iban",
+      "beneficiary",
+      "payee",
+      "routing",
+      "swift",
+      "bic",
+      "aba",
+      "bank"
+    ],
+    "strong_tokens": [
+      "account",
+      "acct",
+      "iban",
+      "number",
+      "num",
+      "no"
+    ],
+    "routing_tokens": [
+      "routing",
+      "swift",
+      "bic",
+      "aba",
+      "sort",
+      "branch",
+      "transit",
+      "code"
+    ],
+    "info_tokens": [
+      "name",
+      "holder",
+      "address",
+      "city",
+      "country",
+      "street",
+      "zip",
+      "postcode",
+      "state",
+      "type",
+      "currency",
+      "ccy",
+      "label",
+      "email",
+      "phone",
+      "memo",
+      "note",
+      "reference",
+      "ref",
+      "date"
+    ],
+    "record_routing_fields": [
+      "routing",
+      "swift",
+      "bic",
+      "aba",
+      "bank_code",
+      "routing_number",
+      "sort_code"
+    ]
+  },
+  "vendor_master": {
+    "tools": [
+      "submit_payment",
+      "release_wire"
+    ],
+    "_note": "Payee accounts (any depth; key in arg_account_fields or key words include account_key_tokens) must equal RecordsLookup.vendor_master(vendor_id).account. Unknown vendor / no record / no lookup -> escalate; mismatch -> block.",
+    "arg_account_fields": [
+      "payee_account",
+      "to_account",
+      "account_number",
+      "beneficiary_account",
+      "bank_account",
+      "destination_account",
+      "iban"
+    ],
+    "account_key_tokens": [
+      "account",
+      "acct",
+      "iban"
+    ],
+    "account_key_exclude_tokens": [
+      "name",
+      "holder",
+      "type",
+      "currency",
+      "label"
+    ],
+    "arg_vendor_fields": [
+      "vendor_id"
+    ]
+  },
+  "vendor_bank_update": {
+    "tools": [
+      "update_vendor_bank_details"
+    ],
+    "_note": "Vendor must exist in RecordsLookup (else escalate). A new account that differs from the master escalates for the P-AP-001 call-back. Denylisted accounts block via the denylist rule.",
+    "arg_account_fields": [
+      "new_account",
+      "bank_account",
+      "account_number",
+      "payee_account",
+      "iban"
+    ],
+    "account_key_tokens": [
+      "account",
+      "acct",
+      "iban"
+    ],
+    "account_key_exclude_tokens": [
+      "name",
+      "holder",
+      "type",
+      "currency",
+      "label"
+    ],
+    "arg_vendor_fields": [
+      "vendor_id"
+    ]
+  },
+  "direct_deposit": {
+    "tools": [
+      "update_direct_deposit"
+    ],
+    "_note": "Escalates unless RecordsLookup.hr_verification(employee_id) returns a completed, unexpired HR-portal verification; if it names the account, the call's account fields must match (P-HR-001).",
+    "arg_employee_fields": [
+      "employee_id"
+    ]
+  },
+  "always_escalate": {
+    "update_user_permissions": {
+      "rule_id": "R-IAM-001",
+      "policy_id": "P-IAM-001",
+      "category": "privilege_misuse",
+      "reason": "Agents cannot change user permissions; route to the IAM team (P-IAM-001)."
+    }
+  },
+  "fast_path_low_tier": true
+}

@@ -1,0 +1,52 @@
+{
+  "_comment": "FAKE sample systems-of-record data for tests and pilot config (finguard/gateway/records.py JsonRecordsLookup). Fake ids, ACCT-0000-style accounts. A production deployment replaces this with a read-only adapter to the bank's vendor master and approvals system.",
+  "vendors": {
+    "V-1001": {
+      "name": "ACME Supplies",
+      "account": "ACCT-0000-1111"
+    },
+    "V-1002": {
+      "name": "Globex Parts",
+      "account": "ACCT-0000-3333"
+    },
+    "V-1003": {
+      "name": "Initech Freight",
+      "account": "ACCT-0000-6666",
+      "swift": "FAKEXX00"
+    }
+  },
+  "approvals": {
+    "APR-123456": {
+      "payee_account": "ACCT-0000-1111",
+      "amount_max": 50000,
+      "currency": "USD",
+      "tool": "submit_payment",
+      "expires": "2099-01-01T00:00:00+00:00",
+      "approver": "human:fixture-approver"
+    },
+    "APR-200001": {
+      "payee_account": "ACCT-0000-1111",
+      "amount_max": 50000,
+      "currency": "USD",
+      "tool": "submit_payment",
+      "expires": "2020-01-01T00:00:00+00:00",
+      "approver": "human:fixture-approver"
+    },
+    "APR-300001": {
+      "payee_account": "ACCT-0000-1111",
+      "amount_max": 50000,
+      "currency": "USD",
+      "tool": "release_wire",
+      "expires": "2099-01-01T00:00:00+00:00",
+      "approver": "human:fixture-approver"
+    }
+  },
+  "hr_verifications": {
+    "E-2001": {
+      "status": "verified",
+      "account": "ACCT-0000-2001",
+      "verified_via": "hr_portal",
+      "expires": "2099-01-01T00:00:00+00:00"
+    }
+  }
+}

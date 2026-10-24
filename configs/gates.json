@@ -1,0 +1,6 @@
+{
+  "pilot_partner_signed": {"open": false, "signed_by": null, "date": null, "evidence": null},
+  "teacher_selected": {"open": false, "signed_by": null, "date": null, "evidence": null, "model": null},
+  "v1_targets_met": {"open": false, "signed_by": null, "date": null, "evidence": null},
+  "independent_review_passed": {"open": false, "signed_by": null, "date": null, "evidence": null}
+}
