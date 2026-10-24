@@ -1,6 +1,7 @@
 """Serve the synthetic demo only on loopback using a required local password."""
 import argparse
 import base64
+import binascii
 import hmac
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -19,7 +20,7 @@ def make_handler(password: str):
             try:
                 prefix, token = auth.split(" ", 1)
                 decoded = base64.b64decode(token, validate=True).decode("utf-8")
-            except (ValueError, UnicodeError):
+            except (ValueError, UnicodeError, binascii.Error):
                 prefix, decoded = "", ""
             authorized = prefix == "Basic" and hmac.compare_digest(decoded, "demo:" + password)
             if not authorized:
