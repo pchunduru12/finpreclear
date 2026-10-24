@@ -104,7 +104,11 @@ def test_unapproved_production_gates_block_startup(tmp_path, monkeypatch):
         "--records", "/etc/finpreclear/records.json", "--audit-log", str(tmp_path / "a.jsonl"),
         "--redact", "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
         "--ssl-ca-certs", "ca.pem"]
-    assert serve.main(args) == 3  # no gate or model run is opened by this test
+    enforced = {k: ({**v, "enforce": True} if isinstance(v, dict) else v)
+                for k, v in gf.ACTION_TYPES.items()}
+    cfg = tmp_path / "enforced.json"
+    cfg.write_text(json.dumps(enforced))
+    assert serve.main(args + ["--action-types", str(cfg)]) == 3  # stopped by final approval gate
 
 
 def test_production_refuses_shadow_configuration(tmp_path):

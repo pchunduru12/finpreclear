@@ -37,7 +37,7 @@ def test_local_dev_loopback_accepted():
         assert serve.transport_configuration_error(args) is None
 
 
-def test_production_requires_mutual_tls():
+def test_production_requires_mutual_tls(tmp_path):
     for extra in (
         [],
         ["--ssl-certfile", "cert.pem"],
@@ -56,6 +56,13 @@ def test_production_requires_mutual_tls():
                                    "--records", "/etc/finpreclear/records.json",
                                    "--ssl-certfile", "cert.pem", "--ssl-keyfile", "key.pem",
                                    "--ssl-ca-certs", "clients.pem"])
+    import json
+    import gateway_fixtures as gf
+    enforced = {k: ({**v, "enforce": True} if isinstance(v, dict) else v)
+                for k, v in gf.ACTION_TYPES.items()}
+    cfg = tmp_path / "enforced.json"
+    cfg.write_text(json.dumps(enforced))
+    approved.action_types = str(cfg)
     assert serve.transport_configuration_error(approved) is None
 
 
