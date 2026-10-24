@@ -252,11 +252,11 @@ def _model_draft(res: JudgeResult, cfg: dict) -> _Draft:
     if out.verdict == Verdict.ALLOW:
         p_allow = pv.get("allow")
         if p_allow is None:
-            if cfg.get("tier") != "low":
-                return _Draft(Verdict.ESCALATE, RiskCategory.POLICY_VIOLATION,
-                              "Model allowed but verdict-token probability is unavailable for a non-read-only tool.",
-                              "", 0.0, "threshold")
-            return _Draft(Verdict.ALLOW, RiskCategory.NONE, out.reason, out.evidence, 0.0, "model")
+            # Low-risk data reads also require calibrated evidence of an allow.
+            # Otherwise a judge could omit logprobs and still approve regulated reads.
+            return _Draft(Verdict.ESCALATE, RiskCategory.POLICY_VIOLATION,
+                          "Model allow cannot be accepted without verdict-token probability.",
+                          "", 0.0, "threshold")
         if p_allow < float(cfg.get("allow_threshold", 0.95)):
             return _Draft(Verdict.ESCALATE, RiskCategory.POLICY_VIOLATION,
                           f"Model allowed with P(allow)={p_allow:.3f} below threshold {cfg.get('allow_threshold')}.",
