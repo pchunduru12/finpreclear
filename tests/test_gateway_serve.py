@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 from finguard.gateway import serve
 
 ARGS = ["--judge-url", "http://127.0.0.1:9", "--judge-model", "finguard-4b", "--model-version", "test-v0",
-        "--policies", "policies/sample_policy.jsonl", "--records", "configs/records_sample.json"]
+        "--policies", "policies/sample_policy.jsonl", "--records", "configs/records_sample.json",
+        "--audit-log", "audit-fixture.jsonl"]
 
 
 def test_launcher_builds_app_from_shipped_configs(tmp_path, monkeypatch):
