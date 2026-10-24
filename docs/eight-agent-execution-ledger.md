@@ -17,7 +17,7 @@ The Build plan specifies **seven operational agents plus the main-session orches
 | fg-reviewer (QA agent) | #9 | Never substitutes for the outside human reviewer |
 | fg-redteam-ops (CLOSED INTERNAL ONLY) | #7 | Never copies generator code, prompts or outputs into the open repo, training/test corpus or release artifacts |
 
-Any `fp-*.md` files introduced in PR #10 are redundant review-role overlays, not authoritative replacements; remove them before merge. All AI-authored material must remain fixture-only and must not enter human-written training/evaluation content, even after human edits.
+The redundant `fp-*.md` specialist overlays introduced in PR #10 have been removed. The seven original `fg-*.md` operating agents remain authoritative. All AI-authored material must remain fixture-only and must not enter human-written training/evaluation content, even after human edits.
 
 ## Scope and gates
 
