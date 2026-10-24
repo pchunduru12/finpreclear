@@ -20,7 +20,7 @@ def test_payment_fails_closed_on_judge_timeout(tmp_path):
     assert d["verdict"] == "block" and d["decided_by"] == "fail_mode" and d["confidence"] == 0.0
 
 
-def test_lookup_vendor_fails_open_on_timeout(tmp_path):
+def test_lookup_vendor_escalates_on_timeout(tmp_path):
     # lookup_vendor is low tier -> fast path by rules; force the model path by removing fast path.
     from finguard.rules import RuleEngine
     import gateway_fixtures as gf
@@ -30,7 +30,38 @@ def test_lookup_vendor_fails_open_on_timeout(tmp_path):
     app = create_app(StubJudge([allow(delay=1.0)]), gf.RETRIEVER, gf.ACTION_TYPES, rules,
                      str(tmp_path / "a.jsonl"), "m", response_key=gf.KEY)
     d = post(TestClient(app), make_req(tool="lookup_vendor", args={"vendor_id": "V-1001"}))
-    assert d["verdict"] == "allow" and d["decided_by"] == "fail_mode"
+    assert d["verdict"] == "escalate" and d["decided_by"] == "fail_mode"
+
+
+
+def test_get_invoice_escalates_on_judge_timeout(tmp_path):
+    """When rules cannot fast-path, an unavailable judge must never fail open."""
+    from finguard.rules import RuleEngine
+    import gateway_fixtures as gf
+    rules = RuleEngine({**gf.RULES.config, "fast_path_low_tier": False})
+    from finguard.gateway.service import create_app
+    from fastapi.testclient import TestClient
+    app = create_app(StubJudge([allow(delay=1.0)]), gf.RETRIEVER, gf.ACTION_TYPES, rules,
+                     str(tmp_path / "a.jsonl"), "m", response_key=gf.KEY)
+    d = post(TestClient(app), make_req(tool="get_invoice", args={"invoice_id": "INV-77"}))
+    assert d["verdict"] == "escalate" and d["decided_by"] == "fail_mode"
+
+
+def test_financial_read_judge_exception_and_malformed_escalate(tmp_path):
+    """Judge failure or unparseable output cannot be treated as permission."""
+    from finguard.rules import RuleEngine
+    from finguard.gateway.service import create_app
+    from fastapi.testclient import TestClient
+    import gateway_fixtures as gf
+    rules = RuleEngine({**gf.RULES.config, "fast_path_low_tier": False})
+    for tool, args in (("get_invoice", {"invoice_id": "INV-77"}),
+                       ("lookup_vendor", {"vendor_id": "V-1001"})):
+        for kind, step in (("exception", StubStep(exc=RuntimeError("unavailable"))),
+                           ("malformed", StubStep(text="not valid judge JSON"))):
+            app = create_app(StubJudge([step]), gf.RETRIEVER, gf.ACTION_TYPES, rules,
+                             str(tmp_path / f"{tool}-{kind}-audit.jsonl"), "m", response_key=gf.KEY)
+            d = post(TestClient(app), make_req(tool=tool, args=args))
+            assert d["verdict"] == "escalate" and d["decided_by"] == "fail_mode", (tool, kind)
 
 
 def test_judge_exception_uses_fail_mode(tmp_path):
@@ -315,8 +346,11 @@ def test_h2_unreachable_gateway_uses_local_fail_mode():
     dead = httpx.Client(base_url="http://127.0.0.1:9", timeout=0.2)
     with pytest.raises(ActionStopped):
         _gc(dead)
-    out, ran = _gc(dead, tool="lookup_vendor", args={"vendor_id": "V-1"})
-    assert out.ran and out.local_fail_mode
+    for tool, args in (("lookup_vendor", {"vendor_id": "V-1"}),
+                       ("get_invoice", {"invoice_id": "INV-77"})):
+        with pytest.raises(ActionStopped) as exc:
+            _gc(dead, tool=tool, args=args)
+        assert exc.value.verdict.value == "escalate"
 
 
 def _replaying_client(real, mutate):

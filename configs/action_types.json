@@ -1,5 +1,5 @@
 {
-  "_comment": "Per-tool risk settings. fail_mode applies when the judge times out, errors or returns malformed output: closed=block, escalate=escalate, open=allow. allow_threshold: minimum P(allow) for a model allow to stand, else escalate. enforce=false means shadow mode for that tool. Unknown tools get _default. Only read-only tools that return no regulated data may fail open.",
+  "_comment": "Per-tool risk settings. fail_mode applies when the judge times out, errors or returns malformed output: closed=block, escalate=escalate, open=allow. allow_threshold: minimum P(allow) for a model allow to stand, else escalate. enforce=false means shadow mode for that tool. Unknown tools get _default. Fail-open is disabled pending documented data-classification and security review.",
   "read_only_tools": ["get_invoice", "lookup_vendor"],
   "_default":                   {"tier": "high",   "fail_mode": "closed",   "timeout_ms": 800, "allow_threshold": 0.95, "enforce": false},
   "release_wire":               {"tier": "high",   "fail_mode": "closed",   "timeout_ms": 800, "allow_threshold": 0.95, "enforce": false},
@@ -12,6 +12,6 @@
   "create_vendor":              {"tier": "medium", "fail_mode": "escalate", "timeout_ms": 600, "allow_threshold": 0.85, "enforce": false},
   "approve_invoice":            {"tier": "medium", "fail_mode": "escalate", "timeout_ms": 600, "allow_threshold": 0.85, "enforce": false},
   "search_customer_records":    {"tier": "medium", "fail_mode": "escalate", "timeout_ms": 600, "allow_threshold": 0.80, "enforce": false},
-  "get_invoice":                {"tier": "low",    "fail_mode": "open",     "timeout_ms": 300, "allow_threshold": 0.50, "enforce": false},
-  "lookup_vendor":              {"tier": "low",    "fail_mode": "open",     "timeout_ms": 300, "allow_threshold": 0.50, "enforce": false}
+  "get_invoice":                {"tier": "low",    "fail_mode": "escalate", "timeout_ms": 300, "allow_threshold": 0.50, "enforce": false},
+  "lookup_vendor":              {"tier": "low",    "fail_mode": "escalate", "timeout_ms": 300, "allow_threshold": 0.50, "enforce": false}
 }
