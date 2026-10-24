@@ -249,7 +249,7 @@ Where we are
 - Gateway: rules first, fail modes per tool, shadow mode, audit log
 - Evaluation harness with 95% intervals and open-guard baselines
 - Data pipeline with licensing and provenance guards
-- 295 automated tests passing (CPU, test data)
+- 300+ automated tests passing (CPU, fixture data)
 **Not yet**
 - No trained model
 - Latency not yet measured on a GPU

@@ -37,4 +37,4 @@ The Build plan estimates about **65 human person-weeks**, with about 200 agent h
 
 Deterministic rules = bank **IT/SOX controls**. The generative action judge = bank **AI governance**. SR 26-2 superseded SR 11-7 in April 2026; it does not apply directly to generative or agentic AI; its principles can be informative.
 
-At commit `a50f3003` on downstream draft PR #11, GitHub Actions run `40132231898` recorded **317 passing CPU fixture tests**, not trained-model accuracy. PR #10 earlier had 304 passing CPU tests. External security/model-risk sign-off remains outstanding.
+On PR #10, **305 CPU fixture tests** pass as of Oct 24 (main: 298; CI is the live count). PR #11's 317 includes future-enforcement tests that are out of v1 scope. None of these counts measure trained-model accuracy. External security/model-risk sign-off remains outstanding.

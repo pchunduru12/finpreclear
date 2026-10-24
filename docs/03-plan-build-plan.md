@@ -8,7 +8,7 @@ The v1 code is built and tested on CPU with fixture data; no model is trained ye
 
 ## What's built
 
-The latest downstream review CI run (PR #11, run 40132231898, commit a50f3003) passed **317 automated CPU fixture tests**. This is not trained-model validation. They are tested on fixture data drafted by Claude, which is marked never-for-training.
+On this branch (PR #10), **305 automated CPU tests** pass on fixture data as of Oct 24 (main: 298; CI on each PR is the live count). PR #11 shows 317 because it adds future-enforcement tests that are out of v1 scope. None of this is trained-model validation. The fixture data was drafted by Claude and is marked never-for-training.
 
 | Component | What it does | Status |
 | --- | --- | --- |
@@ -45,7 +45,14 @@ Humans only: threat-model sign-off, attack and scenario templates, policy clause
 
 ## Timeline
 
-&#91;embedded content: FinPreclear v1 build timeline · 4 phases, 4 gates (reconciled; old visual snapshot)\]
+All timings are estimates, counted from T+0 = pilot agreement signed.
+
+| Phase | When (estimate) | Gate that ends it |
+| --- | --- | --- |
+| 1 · Scope (pre-signature) | Now → T+0, about 4 weeks | 1 `pilot_partner_signed` |
+| 2 · Data + SFT | T+0 → about T+10 weeks | 2 `teacher_selected` comes first, within about a week of T+0; no labeling before it |
+| 3 · RL + testing | about T+10 → T+18 weeks | 3 `v1_targets_met`: shadow pilot may start |
+| 4 · Shadow pilot + release | about T+18 → T+27 weeks | 4 `independent_review_passed`: public release of weights |
 
 The signed pilot agreement is **T+0**. No training or teacher labeling occurs before the applicable signed gates; all data, model and shadow-pilot phases are relative to T+0. The pre-signature synthetic access-restricted demo is separate and capped at 2–4 weeks. It must not delay assigning the security engineer. Phase 4 runs about a month longer than the original plan, because a 4-week shadow pilot plus an outside review rarely fits in one month.
 
