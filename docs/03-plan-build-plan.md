@@ -8,7 +8,7 @@ The v1 code is built and tested on CPU with fixture data; no model is trained ye
 
 ## What's built
 
-On this branch (PR #10), **305 automated CPU tests** pass on fixture data as of Oct 24 (main: 298; CI on each PR is the live count). PR #11 shows 317 because it adds future-enforcement tests that are out of v1 scope. None of this is trained-model validation. The fixture data was drafted by Claude and is marked never-for-training.
+As of Oct 24, **305 automated CPU tests** pass on PR #10 and **323** with the v1 safeguards in PR #14 (main: 298; CI on each PR is the live count). PR #11 shows 317 because it adds future-enforcement tests that are out of v1 scope. None of this is trained-model validation. The fixture data was drafted by Claude and is marked never-for-training.
 
 | Component | What it does | Status |
 | --- | --- | --- |
@@ -89,6 +89,10 @@ These estimates are **human-only**, with agent hours separately shown; they must
 | Phase 4 runs about 2 months | A 4-week shadow pilot plus an outside review won't fit in one month |
 | Confidence thresholds are a false-alarm control, not an attack detector; scorecard reports confidence on attacked inputs | USC guard paper (Oct 2026): a decision flipped by an attack is no less confident, so escalating the least-confident 10% of traffic cut attacked misses only from 60% to 54%. Tested on small encoders, so verify on our 4B judge |
 | Rules layer governed as an IT/SOX control; the model judge goes through the bank's AI governance | SR 26-2 (Apr 2026) replaced SR 11-7: its model definition leaves out deterministic rule-based processes, and generative and agentic AI are out of scope |
+| Four gates: pilot signed, teacher selected, v1 targets met, independent review | Teacher approval is its own gate before any labeling, matching `configs/gates.json` |
+| v1 ends at the shadow pilot; model verdicts never block in v1 | Per-tool enforcement needs shadow evidence and the bank's sign-off, so it is a separate reviewed change after v1 (draft PR #11) |
+| Gate 3 covers what synthetic held-out sets can prove: catch rate, unseen families, baselines, latency | The ≤ 2% false-alarm target can only be proven on shadow-pilot traffic, so requiring it before the pilot would be circular |
+| Pilot launcher needs the v1-targets gate, not the release gate, and keeps `--force-shadow` | Draft PR #11 required the public-release gate and enforce=true to start, which made a shadow pilot impossible and removed the emergency switch. Fixed in PR #14 |
 
 Sources: [Meta/CMU tool-selection paper](https://arxiv.org/html/2610.31483) · [Qwen3-235B-A22B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-235B-A22B-Instruct-2507-FP8) · [DeepSeek-V3-0324 MIT license](https://huggingface.co/blog/open-r1/update-4) · [DeepSeek-R1 license](https://huggingface.co/deepseek-ai/DeepSeek-R1) · [TraceSafe dataset](https://huggingface.co/datasets/CyCraftAI/TraceSafe) · [ToolACE-8B](https://huggingface.co/Team-ACE/ToolACE-8B) · [Kimi K3.1 Pro blog](http://kimi.ai/blog/kimi-k3-1-pro) · [Kimi K3 model card](https://huggingface.co/moonshotai/Kimi-K3)
 
@@ -102,4 +106,4 @@ Sources: [Meta/CMU tool-selection paper](https://arxiv.org/html/2610.31483) · [
   - the setting names for turning off Qwen3's thinking mode in LLaMA-Factory and VeRL;
   - the structured-output field name on the vLLM version we deploy;
   - latency on a real GPU. Every latency number so far is an estimate.
-- [ ] **Shadow mode is on for every tool.** Nothing is blocked yet. Say this plainly to the pilot bank, and switch tools to enforce one at a time on evidence.
+- [ ] **Model verdicts never block in v1.** Two things do block: deterministic rule blocks (denylist, payee mismatch) from day one, and a gateway outage stops high-risk tools. Agree both with the bank's controls lead before go-live.
