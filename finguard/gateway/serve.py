@@ -20,7 +20,7 @@ approval and direct-deposit check escalates (it never passes).
 
 Production startup requires a server certificate, private key and client-CA bundle, so
 client certificates are REQUIRED (mTLS). Live startup also requires --redact,
-non-fixture policy/records and the v1_targets_met human-approved gate. The read-only
+non-fixture policy/records and the ordered independent_review_passed human-approved gate. The read-only
 judge-bypass fast path is disabled outside --insecure-dev. Development transport is
 allowed only on a literal loopback address.
 """
@@ -140,7 +140,7 @@ def main(argv=None) -> int:
     tls = bool(a.ssl_certfile and a.ssl_keyfile)
     if not a.insecure_dev:
         try:
-            gates.require("v1_targets_met")
+            gates.require("independent_review_passed")
         except gates.GateClosed as exc:
             print(f"REFUSED: release preflight gate not satisfied: {exc}", file=sys.stderr)
             return 3
