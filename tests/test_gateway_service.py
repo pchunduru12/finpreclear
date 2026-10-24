@@ -59,7 +59,7 @@ def test_financial_read_judge_exception_and_malformed_escalate(tmp_path):
         for kind, step in (("exception", StubStep(exc=RuntimeError("unavailable"))),
                            ("malformed", StubStep(text="not valid judge JSON"))):
             app = create_app(StubJudge([step]), gf.RETRIEVER, gf.ACTION_TYPES, rules,
-                             str(tmp_path / tool / kind / "audit.jsonl"), "m", response_key=gf.KEY)
+                             str(tmp_path / f"{tool}-{kind}-audit.jsonl"), "m", response_key=gf.KEY)
             d = post(TestClient(app), make_req(tool=tool, args=args))
             assert d["verdict"] == "escalate" and d["decided_by"] == "fail_mode", (tool, kind)
 
