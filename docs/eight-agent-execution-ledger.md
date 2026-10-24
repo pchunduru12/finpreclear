@@ -1,37 +1,40 @@
-# FinPreclear Eight-Role Review — Execution Ledger
+# FinPreclear v1 — reconciled agent roster and scope
 
-Date: 2026-10-24. Repository: `pchunduru12/finpreclear`.
+**Reviewed October 24, 2026.** This file supersedes the earlier eight-agent execution ledger.
 
-**Important:** The role definitions below are engineering workstream instructions and GitHub issues, not eight concurrently running autonomous processes. Their work must be executed through reviewed source changes, reproducible CI, and human approvals. AI-authored code or analysis is not independent external validation.
+## Roles
 
-| Role | Issue | Concrete assigned deliverable | Evidence currently available | Release constraint |
-|---|---|---|---|---|
-| AI Research Architect | #2 | Validate metrics, calibration, split leakage and trained-model generalization | Existing `finguard/eval` and `finguard/data/splits.py`; no trained checkpoint | No claims of measured trained-model performance |
-| Systems Architect | #3 | Production startup mTLS, gateway failure semantics and modularity | Explicit TLS/CA startup hardening + tests in this review | Release only after infrastructure review |
-| Performance Engineer | #4 | Reproducible latency/throughput study by component | Existing rule scanner CPU regression benchmarks | GPU numbers must be measured, not guessed |
-| Security Architect | #5 | Threat model, tenant isolation, authentication, secrets and audit safety | Fast-path and launcher issues identified; partial startup hardening | Human security review required |
-| Financial Risk Specialist | #6 | Control mapping, payment escalation, false approvals/rejections | Rules and action-type config reviewed at a high level | Bank-specific approval and gates stay closed |
-| Red-Team Agent | #7 | Synthetic adversarial cases and bypass regressions | Existing `tests/test_gateway_round2.py` | No real-account exploit payloads or unapproved training examples |
-| MLOps Engineer | #8 | Reproducible releases, CI and monitoring | Versioned manifests, training scripts and CPU GitHub Actions | No GPU training before the signed pilot gate |
-| Independent QA Agent | #9 | Evidence-based go/no-go, independent review of all patches | Last completed CPU regression: 300 passed / 1 warning | External independent review required |
+The Build plan specifies **seven operational agents plus the main-session orchestrator**. The original `.claude/agents/fg-*.md` files are canonical. GitHub Issues #2–#9 remain eight **review workstreams**, not eight additional autonomous agents. The QA agent is an internal code reviewer, never an independent model-risk signatory.
 
-## Work completed in this pass
+| Canonical role | Tracks | Binding NEVER constraint |
+| --- | --- | --- |
+| Orchestrator | #2–#9 | Never opens approval gates |
+| fg-data-ops | #2, #8 | Never writes/edits training or test templates, labels or reasons; no labeling before teacher gate |
+| fg-train-ops | #2, #8 | Never bypasses pilot signature or edits reward constants without human review |
+| fg-eval | #2, #4 | Never tunes to test splits |
+| fg-gateway-ops | #3, #4, #5 | Never switches a tool from shadow to enforce |
+| fg-modelrisk-docs | #6 | Never marks governance documents approved |
+| fg-reviewer (QA agent) | #9 | Never substitutes for the outside human reviewer |
+| fg-redteam-ops (CLOSED INTERNAL ONLY) | #7 | Never copies generator code, prompts or outputs into the open repo, training/test corpus or release artifacts |
 
-- Issues #2–#9 created and each scoped with definition of done and limits.
-- Launcher review identified a gap: server TLS without a client CA was previously accepted; `--insecure-dev` could bind all network interfaces.
-- Launcher now refuses incomplete production mTLS and rejects non-loopback `--insecure-dev`.
-- Added regression tests for insecure binding, incomplete TLS, accepted loopback development and a complete production TLS configuration.
-- Production enforcement remains disabled and all project gates remain unchanged.
+Any `fp-*.md` files introduced in PR #10 are redundant review-role overlays, not authoritative replacements; remove them before merge. All AI-authored material must remain fixture-only and must not enter human-written training/evaluation content, even after human edits.
 
-## Release blockers
+## Scope and gates
 
-1. No trained, calibrated judge or independently validated generalization results.
-2. No verified bank-specific controls or tenant-isolated authorization integration.
-3. No end-to-end production mTLS deployment validation with real certificates.
-4. No independent external penetration test or approved model risk validation.
-5. Read-only fast-path risk classification and authentication must be verified.
-6. Performance under real vLLM/GPU production concurrency remains unmeasured.
+**v1 = a single bank-hosted action judge in shadow mode**. No SaaS tenant isolation, public beta, or live financial enforcement. Keep mTLS, per-bank authentication, secrets, and read-only vendor-master/approvals systems-of-record adapters.
 
-## Evidence standards
+**T+0 = signed pilot partnership.** No labeling or training until relevant signed gates open. Pre-signature work can include an access-restricted, **human-scenario-only**, 2–4-week synthetic **demo**, visibly labeling every verdict `STUB / SIMULATION — NOT A TRAINED MODEL`. The demo may not delay hiring/assigning the security engineer responsible for approximately six human weeks of template writing.
 
-Tests must be reported with exact commit SHA and GitHub Actions run URL. No test result can establish properties outside its tested scope. Model fixture test scores may not be presented as real-world safety estimates. Neither AI roles nor CI can supply the human sign-offs required by `configs/gates.json`.
+Four ordered human gates, all currently closed:
+1. `pilot_partner_signed` — before training.
+2. `teacher_selected` — after legal license review, before teacher labeling.
+3. `v1_targets_met` — validated model and bank-approved acceptance criteria.
+4. `independent_review_passed` — outside human review before public model release.
+
+The Build plan estimates about **65 human person-weeks**, with about 200 agent hours separately. Do not combine this with engineering workstream estimates.
+
+## Governance and tests
+
+Deterministic rules = bank **IT/SOX controls**. The generative action judge = bank **AI governance**. SR 26-2 superseded SR 11-7 in April 2026; it does not apply directly to generative or agentic AI; its principles can be informative.
+
+At commit `a50f3003` on downstream draft PR #11, GitHub Actions run `40132231898` recorded **317 passing CPU fixture tests**, not trained-model accuracy. PR #10 earlier had 304 passing CPU tests. External security/model-risk sign-off remains outstanding.
