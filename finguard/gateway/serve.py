@@ -113,6 +113,21 @@ def transport_configuration_error(a: argparse.Namespace) -> str | None:
             return "production requires a bank-controlled records adapter or verified policy data source"
         if Path(a.records).resolve() == (repo_root / "configs" / "records_sample.json").resolve():
             return "production cannot use fixture vendor and approval records"
+        if a.force_shadow:
+            return "production cannot use --force-shadow: a blocked decision must be enforced"
+        try:
+            from .service import validate_action_types, tool_entries
+            action_types = json.loads(Path(a.action_types).read_text())
+            validate_action_types(action_types)
+        except (OSError, ValueError, TypeError) as exc:
+            return f"production action configuration is invalid: {type(exc).__name__}"
+        # Production must not depend on a shadow setting that allows the
+        # client wrapper to execute a tool despite BLOCK or ESCALATE.
+        entries = {"_default": action_types["_default"], **tool_entries(action_types)}
+        if any(entry.get("enforce") is not True for entry in entries.values()):
+            return "production requires enforce=true for every configured tool and _default"
+        if any(entry.get("fail_mode") == "open" for entry in entries.values()):
+            return "production cannot use fail-open actions"
     return None
 
 

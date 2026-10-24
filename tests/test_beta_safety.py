@@ -105,3 +105,43 @@ def test_unapproved_production_gates_block_startup(tmp_path, monkeypatch):
         "--redact", "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
         "--ssl-ca-certs", "ca.pem"]
     assert serve.main(args) == 3  # no gate or model run is opened by this test
+
+
+def test_production_refuses_shadow_configuration(tmp_path):
+    args = serve.parse([
+        "--judge-url", "http://127.0.0.1:9", "--judge-model", "fixture",
+        "--model-version", "fixture", "--policies", "/etc/finpreclear/policies.jsonl",
+        "--records", "/etc/finpreclear/records.json", "--audit-log", str(tmp_path / "a.jsonl"),
+        "--redact", "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
+        "--ssl-ca-certs", "ca.pem"])
+    assert "enforce=true" in serve.transport_configuration_error(args)
+
+
+def test_production_rejects_force_shadow_even_with_enforced_config(tmp_path):
+    enforced = {k: ({**v, "enforce": True} if isinstance(v, dict) else v)
+                for k, v in gf.ACTION_TYPES.items()}
+    cfg = tmp_path / "enforced.json"
+    cfg.write_text(json.dumps(enforced))
+    args = serve.parse([
+        "--judge-url", "http://127.0.0.1:9", "--judge-model", "fixture",
+        "--model-version", "fixture", "--policies", "/etc/finpreclear/policies.jsonl",
+        "--records", "/etc/finpreclear/records.json", "--audit-log", str(tmp_path / "a.jsonl"),
+        "--action-types", str(cfg), "--force-shadow", "--redact",
+        "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
+        "--ssl-ca-certs", "ca.pem"])
+    assert "--force-shadow" in serve.transport_configuration_error(args)
+
+
+def test_production_enforcement_config_can_pass_static_preflight(tmp_path):
+    enforced = {k: ({**v, "enforce": True} if isinstance(v, dict) else v)
+                for k, v in gf.ACTION_TYPES.items()}
+    cfg = tmp_path / "enforced.json"
+    cfg.write_text(json.dumps(enforced))
+    args = serve.parse([
+        "--judge-url", "http://127.0.0.1:9", "--judge-model", "fixture",
+        "--model-version", "fixture", "--policies", "/etc/finpreclear/policies.jsonl",
+        "--records", "/etc/finpreclear/records.json", "--audit-log", str(tmp_path / "a.jsonl"),
+        "--action-types", str(cfg), "--redact",
+        "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
+        "--ssl-ca-certs", "ca.pem"])
+    assert serve.transport_configuration_error(args) is None
