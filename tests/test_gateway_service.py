@@ -346,8 +346,11 @@ def test_h2_unreachable_gateway_uses_local_fail_mode():
     dead = httpx.Client(base_url="http://127.0.0.1:9", timeout=0.2)
     with pytest.raises(ActionStopped):
         _gc(dead)
-    out, ran = _gc(dead, tool="lookup_vendor", args={"vendor_id": "V-1"})
-    assert out.ran and out.local_fail_mode
+    for tool, args in (("lookup_vendor", {"vendor_id": "V-1"}),
+                       ("get_invoice", {"invoice_id": "INV-77"})):
+        with pytest.raises(ActionStopped) as exc:
+            _gc(dead, tool=tool, args=args)
+        assert exc.value.verdict.value == "escalate"
 
 
 def _replaying_client(real, mutate):
